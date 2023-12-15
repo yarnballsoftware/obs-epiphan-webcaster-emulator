@@ -1,4 +1,4 @@
-# OBS Toggle Scene Plugin
+# OBS Epiphan Webcaster X2 Plugin
 
 ## **Description**:
 
