@@ -1,10 +1,17 @@
-obs = obslua
+local obs = obslua
 
-scene_two = ""
-scene_one = ""
-hotkey_toggle = obs.OBS_INVALID_HOTKEY_ID
+local scene_two = ""
+local scene_one = ""
+local pip_source_one = ""
+local pip_source_two = ""
+local debug = false
+local hk = {}
+local hotkeys = {
+	TOGGLE_scene = "Webcaster: Toggle Scene",
+	TOGGLE_pip = "Webcaster: Toggle Picture in Picture",
+}
 
-function switch_scene(scene_name)
+local function switch_scene(scene_name)
     local source = obs.obs_get_source_by_name(scene_name)
     if source ~= nil then
         obs.obs_frontend_set_current_scene(source)
@@ -12,21 +19,53 @@ function switch_scene(scene_name)
     end
 end
 
-function toggle_scene(pressed)
-    if pressed then
-        local current_scene = obs.obs_frontend_get_current_scene()
-
-        if current_scene ~= nil then
-            local scene_name = obs.obs_source_get_name(current_scene)
-            obs.obs_source_release(current_scene)
-
-            if scene_name ~= scene_one then
-                switch_scene(scene_one)
-            else
-                switch_scene(scene_two)
-            end
+local function toggle_scene()
+    local current_scene = obs.obs_frontend_get_current_scene()
+    if current_scene ~= nil then
+        local scene_name = obs.obs_source_get_name(current_scene)
+        obs.obs_source_release(current_scene)
+        if scene_name ~= scene_one then
+            switch_scene(scene_one)
+        else
+            switch_scene(scene_two)
         end
     end
+end
+
+-- local function toggle_pip()
+--     local current_source = obs.obs_frontend_get_current_scene()
+--     obs.script_log(obs.LOG_INFO, "1")
+--     if current_source ~= nil then
+--         local scene_name = obs.obs_source_get_name(current_source)
+--         obs.obs_source_release(current_source)
+--         obs.script_log(obs.LOG_INFO, "2")
+--         if scene_name == scene_one then
+--             local scene_item = obs.obs_scene_sceneitem_from_source(scene, source)
+--             obs.script_log(obs.LOG_INFO, "3")
+--             if scene_item then
+--                 local is_visible = obs.obs_sceneitem_visible(scene_item)
+--                 if is_visible then
+--                     obs.obs_sceneitem_set_visible(scene_item, false)
+--                 else 
+--                     obs.obs_scene_item_set_visible(scene_item, true)
+--                 end
+--             else
+--                 print("Source '" .. pip_source_one .. "' not found in current scene.")
+--             end
+--         else
+--             -- switch_scene(scene_two)
+--         end
+--     end
+-- end
+
+local function onHotKey(action)
+	if debug then obs.script_log(obs.LOG_INFO, string.format("Hotkey : %s", action)) end
+	if action == "TOGGLE_scene" then
+		toggle_scene()
+	elseif action == "TOGGLE_pip" then
+		obs.script_log(obs.LOG_INFO, string.format("Hotkey : %s", action))
+        -- toggle_pip()
+	end
 end
 
 function script_description()
@@ -37,25 +76,30 @@ function script_properties()
     local props = obs.obs_properties_create()
 
     -- Dropdown for scene selection
-    local p = obs.obs_properties_add_list(props, "scene_list", "Select Scene 1", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    local p1 = obs.obs_properties_add_list(props, "scene_list", "Select Scene 1", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    local p2 = obs.obs_properties_add_list(props, "scene_list2", "Select Scene 2", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
     local scenes = obs.obs_frontend_get_scenes()
     if scenes then
         for _, scene in ipairs(scenes) do
             local scene_name = obs.obs_source_get_name(scene)
-            obs.obs_property_list_add_string(p, scene_name, scene_name)
+            obs.obs_property_list_add_string(p1, scene_name, scene_name)
+            obs.obs_property_list_add_string(p2, scene_name, scene_name)
             obs.obs_source_release(scene)
         end
     end
 
-    local p2 = obs.obs_properties_add_list(props, "scene_list2", "Select Scene 2", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
-    local scenes2 = obs.obs_frontend_get_scenes()
-    if scenes2 then
-        for _, scene2 in ipairs(scenes2) do
-            local scene_name = obs.obs_source_get_name(scene2)
-            obs.obs_property_list_add_string(p2, scene_name, scene_name)
-            obs.obs_source_release(scene2)
+    local p3 = obs.obs_properties_add_list(props, "pip_list1", "Select PiP Source 1", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    local p4 = obs.obs_properties_add_list(props, "pip_list2", "Select PiP Source 2", obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+    local sources1 = obs.obs_enum_sources()
+    if sources1 then
+        for _, source1 in ipairs(sources1) do
+            local source_name = obs.obs_source_get_name(source1)
+            obs.obs_property_list_add_string(p3, source_name, source_name)
+            obs.obs_property_list_add_string(p4, source_name, source_name)
+            obs.obs_source_release(source1)
         end
     end
+    -- obs.obs_enum_source_release(sources1)
 
     return props
 end
@@ -63,31 +107,50 @@ end
 function script_update(settings)
     scene_one = obs.obs_data_get_string(settings, "scene_list")
     scene_two = obs.obs_data_get_string(settings, "scene_list2")
+    pip_source_one = obs.obs_data_get_string(settings, "pip_list1")
+    pip_source_two = obs.obs_data_get_string(settings, "pip_list2")
 end
+
 
 function script_save(settings)
-
-    local hotkey_save_data = obs.obs_hotkey_save(hotkey_toggle)
-    if hotkey_save_data then
-        local wrapper = obs.obs_data_create()
-        obs.obs_data_set_array(wrapper, "hotkey_data", hotkey_save_data)
-        local json_str = obs.obs_data_get_json(wrapper)
-        obs.obs_data_set_string(settings, "toggle_scene_hotkey_data", json_str)
-        obs.obs_data_release(wrapper)
-        obs.obs_data_array_release(hotkey_save_data)
-    end
+	for k, v in pairs(hotkeys) do
+		local hotkeyArray = obs.obs_hotkey_save(hk[k])
+		obs.obs_data_set_array(settings, k, hotkeyArray)
+		obs.obs_data_array_release(hotkeyArray)
+	end
 end
+
 
 function script_load(settings)
-    hotkey_toggle = obs.obs_hotkey_register_frontend(script_path(), "Toggle Scene Hotkey", toggle_scene)
-
-    local json_str = "{\"hotkey_data\":[{\"key\":\"OBS_KEY_TAB\"}]}"
-    if json_str and json_str ~= "" then
-        local wrapper = obs.obs_data_create_from_json(json_str)
-        local hotkey_save_data = obs.obs_data_get_array(wrapper, "hotkey_data")
-        print("debug json_str: " .. json_str)
-        obs.obs_hotkey_load(hotkey_toggle, hotkey_save_data)
-        obs.obs_data_array_release(hotkey_save_data)
-        obs.obs_data_release(wrapper)
-    end
+	for k, v in pairs(hotkeys) do
+		hk[k] = obs.obs_hotkey_register_frontend(k, v, function(pressed) if pressed then onHotKey(k) end end)
+		local hotkeyArray = obs.obs_data_get_array(settings, k)
+		obs.obs_hotkey_load(hk[k], hotkeyArray)
+		obs.obs_data_array_release(hotkeyArray)
+	end
 end
+
+-- Keep this around for a setting JSON reference
+-- function script_save(settings)
+--     local hotkey_save_data = obs.obs_hotkey_save(hotkey_scene_toggle)
+--     if hotkey_save_data then
+--         local wrapper = obs.obs_data_create()
+--         obs.obs_data_set_array(wrapper, "hotkey_data", hotkey_save_data)
+--         local json_str = obs.obs_data_get_json(wrapper)
+--         obs.obs_data_set_string(settings, "toggle_scene_hotkey_data", json_str)
+--         obs.obs_data_release(wrapper)
+--         obs.obs_data_array_release(hotkey_save_data)
+--     end
+-- end
+-- function script_load(settings)
+--     hotkey_scene_toggle = obs.obs_hotkey_register_frontend(script_path(), "Toggle Scene Hotkey", toggle_scene)
+--     local json_str = "{\"hotkey_data\":[{\"key\":\"OBS_KEY_TAB\"}]}"
+--     if json_str and json_str ~= "" then
+--         local wrapper = obs.obs_data_create_from_json(json_str)
+--         local hotkey_save_data = obs.obs_data_get_array(wrapper, "hotkey_data")
+--         print("debug json_str: " .. json_str)
+--         obs.obs_hotkey_load(hotkey_scene_toggle, hotkey_save_data)
+--         obs.obs_data_array_release(hotkey_save_data)
+--         obs.obs_data_release(wrapper)
+--     end
+-- end
