@@ -3,7 +3,6 @@ obs = obslua
 scene_two = ""
 scene_one = ""
 hotkey_toggle = obs.OBS_INVALID_HOTKEY_ID
-hotkey_pressed = false
 
 function switch_scene(scene_name)
     local source = obs.obs_get_source_by_name(scene_name)
@@ -15,23 +14,18 @@ end
 
 function toggle_scene(pressed)
     if pressed then
-        if not hotkey_pressed then
-            hotkey_pressed = true
-            local current_scene = obs.obs_frontend_get_current_scene()
+        local current_scene = obs.obs_frontend_get_current_scene()
 
-            if current_scene ~= nil then
-                local scene_name = obs.obs_source_get_name(current_scene)
-                obs.obs_source_release(current_scene)
+        if current_scene ~= nil then
+            local scene_name = obs.obs_source_get_name(current_scene)
+            obs.obs_source_release(current_scene)
 
-                if scene_name ~= scene_one then
-                    switch_scene(scene_one)
-                else
-                    switch_scene(scene_two)
-                end
+            if scene_name ~= scene_one then
+                switch_scene(scene_one)
+            else
+                switch_scene(scene_two)
             end
         end
-    else
-        hotkey_pressed = false
     end
 end
 
