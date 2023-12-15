@@ -1,7 +1,7 @@
 obs = obslua
 
-last_scene = ""
-toggled_scene_name = ""
+scene_two = ""
+scene_one = ""
 hotkey_toggle = obs.OBS_INVALID_HOTKEY_ID
 hotkey_pressed = false
 
@@ -23,11 +23,10 @@ function toggle_scene(pressed)
                 local scene_name = obs.obs_source_get_name(current_scene)
                 obs.obs_source_release(current_scene)
 
-                if scene_name ~= toggled_scene_name then
-                    last_scene = scene_name
-                    switch_scene(toggled_scene_name)
+                if scene_name ~= scene_one then
+                    switch_scene(scene_one)
                 else
-                    switch_scene(last_scene)
+                    switch_scene(scene_two)
                 end
             end
         end
@@ -68,12 +67,11 @@ function script_properties()
 end
 
 function script_update(settings)
-    toggled_scene_name = obs.obs_data_get_string(settings, "scene_list")
-    last_scene = obs.obs_data_get_string(settings, "last_scene")
+    scene_one = obs.obs_data_get_string(settings, "scene_list")
+    scene_two = obs.obs_data_get_string(settings, "scene_list2")
 end
 
 function script_save(settings)
-    obs.obs_data_set_string(settings, "last_scene", last_scene)
 
     local hotkey_save_data = obs.obs_hotkey_save(hotkey_toggle)
     if hotkey_save_data then
