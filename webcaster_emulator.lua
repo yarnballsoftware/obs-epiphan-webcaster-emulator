@@ -32,31 +32,67 @@ local function toggle_scene()
     end
 end
 
--- local function toggle_pip()
---     local current_source = obs.obs_frontend_get_current_scene()
---     obs.script_log(obs.LOG_INFO, "1")
---     if current_source ~= nil then
---         local scene_name = obs.obs_source_get_name(current_source)
---         obs.obs_source_release(current_source)
---         obs.script_log(obs.LOG_INFO, "2")
---         if scene_name == scene_one then
---             local scene_item = obs.obs_scene_sceneitem_from_source(scene, source)
---             obs.script_log(obs.LOG_INFO, "3")
---             if scene_item then
---                 local is_visible = obs.obs_sceneitem_visible(scene_item)
---                 if is_visible then
---                     obs.obs_sceneitem_set_visible(scene_item, false)
---                 else 
---                     obs.obs_scene_item_set_visible(scene_item, true)
---                 end
---             else
---                 print("Source '" .. pip_source_one .. "' not found in current scene.")
---             end
---         else
---             -- switch_scene(scene_two)
---         end
---     end
--- end
+local function toggle_pip_old()
+    local current_source = obs.obs_frontend_get_current_scene()
+    if current_source ~= nil then
+        local scene_name = obs.obs_source_get_name(current_source)
+        if scene_name == scene_one then
+            local scene = obs.obs_scene_from_source(current_source)
+            local scene_item = obs.obs_scene_find_source(scene, pip_source_one)
+            if scene_item then
+                local is_visible = obs.obs_sceneitem_visible(scene_item)
+                if is_visible then
+                    obs.obs_sceneitem_set_visible(scene_item, false)
+                else 
+                    obs.obs_sceneitem_set_visible(scene_item, true)
+                end
+            else
+                print("Source '" .. pip_source_one .. "' not found in current scene.")
+            end
+        else
+            -- switch_scene(scene_two)
+        end
+    end
+    obs.obs_source_release(current_source)
+end
+
+local function toggle_pip()
+    local scenes = obs.obs_frontend_get_scenes()
+    if scenes ~= nil then
+        for _, scene_source in ipairs(scenes) do
+            local scene_name = obs.obs_source_get_name(scene_source)
+            local scene = obs.obs_scene_from_source(scene_source)
+            if scene_name == scene_one then
+                local scene_item = obs.obs_scene_find_source(scene, pip_source_one)
+                if scene_item then
+                    local is_visible = obs.obs_sceneitem_visible(scene_item)
+                    if is_visible then
+                        obs.obs_sceneitem_set_visible(scene_item, false)
+                    else 
+                        obs.obs_sceneitem_set_visible(scene_item, true)
+                    end
+                else
+                    print("Source '" .. pip_source_one .. "' not found in current scene.")
+                end
+            elseif scene_name == scene_two then
+                local scene_item = obs.obs_scene_find_source(scene, pip_source_two)
+                if scene_item then
+                    local is_visible = obs.obs_sceneitem_visible(scene_item)
+                    if is_visible then
+                        obs.obs_sceneitem_set_visible(scene_item, false)
+                    else 
+                        obs.obs_sceneitem_set_visible(scene_item, true)
+                    end
+                else
+                    print("Source '" .. pip_source_two .. "' not found in current scene.")
+                end
+            else
+                print("Scene '" .. scene_name .. "' skipped.")
+            end
+        end
+    end
+    obs.source_list_release(scenes)
+end
 
 local function onHotKey(action)
 	if debug then obs.script_log(obs.LOG_INFO, string.format("Hotkey : %s", action)) end
@@ -64,7 +100,7 @@ local function onHotKey(action)
 		toggle_scene()
 	elseif action == "TOGGLE_pip" then
 		obs.script_log(obs.LOG_INFO, string.format("Hotkey : %s", action))
-        -- toggle_pip()
+        toggle_pip()
 	end
 end
 
